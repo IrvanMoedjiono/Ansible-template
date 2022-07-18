@@ -1,0 +1,44 @@
+- hosts: all
+  become: true
+  tasks:
+
+   - name: update and upgrade
+     shell: sudo apt update; sudo apt upgrade -y
+
+   - name: create user
+     user:
+       name: irvanas
+       password: $6$jjJDIQKytOvhM9JK$j.YvwC6CkA8Gd3wj/y.KE1ZZ5iJOZhfjMNuJB9jE2NsgoS0YlHHHSsU0Bnlj095tLGbs2zWTDN2yIi8hKq15v1
+       groups: sudo
+       state: present
+
+    - name: Add public key to authorized_keys
+      ansible.posix.authorized_key:
+        user: "irvanas"
+        state: present
+        key: "{{ lookup('file', '/home/ubuntu/.ssh/id_rsa.pub') }}"  
+  
+    - name: Allow specific users to log in
+      ansible.builtin.lineinfile:
+        dest: /etc/ssh/sshd_config
+        regexp: '^AllowUsers'
+        line: 'AllowUsers irvanas'
+        state: present
+
+    - name: Add user to sudoers file
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        regexp: '^irvanas'
+        line: 'irvanas ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+   - name: enable password auth
+     lineinfile:
+       path: /etc/ssh/sshd_config
+       search_string: 'PasswordAuthentication no'
+       line: PasswordAuthentication yes
+
+   - name: restart ssh services
+     service:
+       name: ssh
+       state: restarted
